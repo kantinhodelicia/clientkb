@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kantinho Delícia Pizzaria</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <!-- Optional: Theme color for browser UI -->
+    <meta name="theme-color" content="#ef4444">
+
+    <style>
+        @media (max-width: 640px) {
+            .font-mobile-adjust {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        function MainComponent() {
+            const [selectedSize, setSelectedSize] = React.useState("FAMILIAR");
+            const [selectedMenu, setSelectedMenu] = React.useState("PIZZAS");
+            const [isZonesOpen, setIsZonesOpen] = React.useState(false);
+            const [cartItems, setCartItems] = React.useState([]);
+            const [showCart, setShowCart] = React.useState(false);
+            const [selectedZone, setSelectedZone] = React.useState(null);
+            // NEW States for Half & Half Pizza
+            const [showHalfHalfModal, setShowHalfHalfModal] = React.useState(false);
+            const [halfHalfSize, setHalfHalfSize] = React.useState("FAMILIAR"); // Default size for modal
+            const [selectedHalf1, setSelectedHalf1] = React.useState(null);
+            const [selectedHalf2, setSelectedHalf2] = React.useState(null);
+            const [appData, setAppData] = React.useState(null); // State to hold data from JSON
+            const [isLoading, setIsLoading] = React.useState(true); // Loading state
+            const [searchQuery, setSearchQuery] = React.useState(""); // State for search query
+
+            // NEW: State to manage extras visibility in the cart
+            const [extrasVisibility, setExtrasVisibility] = React.useState({});
+
+            // Fetch data from JSON on component mount
+            React.useEffect(() => {
+                fetch('data.json')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        setAppData(data);
+                        setIsLoading(false);
+                    })
+                    .catch(error => {
+                        console.error("Could not fetch data:", error);
+                        setIsLoading(false); // Also stop loading on error
+                        // Optionally, display an error message to the user
+                    });
+            }, []); // Empty dependency array means this runs once on mount
+
+            // Return loading state or error state if data hasn't loaded
+            if (isLoading) {
+                return <div className="flex justify-center items-center min-h-screen bg-[#1a1a1a] text-white text-xl">Carregando dados...</div>;
+            }
+
+            if (!appData) {
+                return <div className="flex justify-center items-center min-h-screen bg-[#1a1a1a] text-red-500 text-xl">Erro ao carregar os dados do menu. Tente recarregar a página.</div>;
+            }
+
+            // Destructure data from appData for easier access
+            const {
+                BOX_PRICE,
+                WHATSAPP_NUMBER,
+                availableExtras,
+                pizzaMenu,
+                drinkMenu,
+                deliveryZones
+            } = appData;
+
+            const addToCart = (item, type) => {
+                const size = type === 'pizza' ? selectedSize : 'UN';
+                const basePrice = item.prices[size];
+
+                if (basePrice === null || basePrice === undefined) {
+                    alert("Este item não está disponível no tamanho selecionado.");
+                    return;
+                }
+
+                setCartItems(prevItems => {
+                    let existingItemIndex = -1;
+
+                    if (type === 'pizza') {
+                        existingItemIndex = prevItems.findIndex(cartItem =>
+                            cartItem.type === 'pizza' &&
+                            cartItem.name === item.name &&
+                            cartItem.size === size &&
+                            (!cartItem.extras || cartItem.extras.length === 0)
+                        );
+                    } else {
+                        existingItemIndex = prevItems.findIndex(cartItem =>
+                            cartItem.type === 'drink' && cartItem.name === item.name
+                        );
+                    }
+
+                    if (existingItemIndex > -1) {
+                        const updatedItems = [...prevItems];
+                        updatedItems[existingItemIndex].quantity += 1;
+                        return updatedItems;
+                    } else {
+                        const newItem = {
+                            name: item.name,
+                            size: size,
+                            basePrice: basePrice,
+                            extras: type === 'pizza' ? [] : undefined,
+                            quantity: 1,
+                            type: type,
+                        };
+                        return [...prevItems, newItem];
+                    }
+                });
+
+                setShowCart(true);
+            };
+
+            const updateQuantity = (index, delta) => {
+                setCartItems(prevItems => {
+                    const updatedItems = [...prevItems];
+                    if (!updatedItems[index]) return prevItems;
+                    updatedItems[index].quantity += delta;
+                    if (updatedItems[index].quantity <= 0) {
+                        return updatedItems.filter((_, i) => i !== index);
+                    }
+                    return updatedItems;
+                });
+            };
+
+            const removeFromCart = (index) => {
+                setCartItems(prevItems => prevItems.filter((_, i) => i !== index));
+                // Clean up visibility state for the removed item
+                setExtrasVisibility(prev => {
+                    const newState = {...prev};
+                    delete newState[index];
+                    // Adjust indices for subsequent items (optional, but cleaner)
+                    // This part is tricky if indices shift significantly, maybe simpler to just delete
+                    // For now, just deleting the key might suffice as map indices will update on next render
+                    return newState;
+                });
+            };
+
+            const handleZoneChange = (event) => {
+                const zoneName = event.target.value;
+                if (!zoneName) {
+                    setSelectedZone(null);
+                } else {
+                    const zone = deliveryZones.find(z => z.name === zoneName);
+                    setSelectedZone(zone);
+                }
+            };
+
+            const calculateItemTotalUnitPrice = (item) => {
+                if (!item || typeof item.basePrice !== 'number') return 0;
+                // Explicitly ignore extras for MARGUERITA, even if they exist on the item object
+                const extrasPrice = (item.name !== 'MARGUERITA' && item.extras)
+                                    ? item.extras.reduce((sum, extra) => sum + extra.price, 0)
+                                    : 0;
+                return item.basePrice + extrasPrice;
+            };
+
+            const calculateSubtotal = () => {
+                return cartItems.reduce((total, item) => {
+                    const itemUnitPrice = calculateItemTotalUnitPrice(item);
+                    return total + itemUnitPrice * item.quantity;
+                }, 0);
+            };
+
+            const calculateBoxFee = () => {
+                return cartItems.reduce((total, item) => {
+                    if (item.type === 'pizza') {
+                        return total + BOX_PRICE * item.quantity;
+                    }
+                    return total;
+                }, 0);
+            };
+
+            const calculateTotal = () => {
+                const subtotal = calculateSubtotal();
+                const boxFee = calculateBoxFee();
+                const deliveryFee = selectedZone ? selectedZone.price : 0;
+                return subtotal + boxFee + deliveryFee;
+            };
+
+            const generateWhatsAppMessage = () => {
+                if (cartItems.length === 0) {
+                    alert("Seu carrinho está vazio!");
+                    return;
+                }
+                if (!selectedZone) {
+                    alert("Por favor, selecione uma zona de entrega.");
+                    return;
+                }
+
+                let message = `*Novo Pedido - Kantinho Delícia*\n\n`;
+                message += "*Itens:* \n";
+                cartItems.forEach(item => {
+                    const itemUnitPrice = calculateItemTotalUnitPrice(item);
+                    message += `- ${item.quantity}x ${item.name}`;
+                    if (item.size !== 'UN') {
+                        message += ` (${item.size})`;
+                    }
+                    if (item.extras && item.extras.length > 0) {
+                        message += `\n   *Extras:* `;
+                        message += item.extras.map(e => `${e.name} (+${e.price}$00)`).join(', ');
+                    }
+                    message += `\n   *Preço Total Item:* ${itemUnitPrice * item.quantity}$00 (Unit: ${itemUnitPrice}$00)\n`;
+                });
+
+                const subtotal = calculateSubtotal();
+                const boxFee = calculateBoxFee();
+                const deliveryFee = selectedZone.price;
+                const total = calculateTotal();
+
+                message += `\n*Subtotal Itens:* ${subtotal}$00\n`;
+                if (boxFee > 0) {
+                    message += `*Taxa de Caixa (${BOX_PRICE}$00/pizza):* ${boxFee}$00\n`;
+                }
+                message += `*Zona de Entrega:* ${selectedZone.name} (+${deliveryFee}$00)\n`;
+                message += `*Total Final:* *${total}$00*\n\n`;
+                message += `Obrigado!`;
+
+                const encodedMessage = encodeURIComponent(message);
+                const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
+
+                window.open(whatsappUrl, '_blank');
+            };
+
+            // NEW function to handle extra changes within the cart
+            const handleCartExtraChange = (cartItemIndex, extraName, isChecked) => {
+                setCartItems(prevItems => {
+                    const updatedItems = [...prevItems];
+                    const itemToUpdate = updatedItems[cartItemIndex];
+                    if (!itemToUpdate || itemToUpdate.type !== 'pizza') return prevItems; // Only pizzas have extras
+
+                    const extraDetails = availableExtras.find(e => e.name === extraName);
+                    if (!extraDetails) return prevItems; // Should not happen
+
+                    let currentExtras = itemToUpdate.extras || [];
+
+                    if (isChecked) {
+                        // Add extra if not already present
+                        if (!currentExtras.some(e => e.name === extraName)) {
+                            currentExtras = [...currentExtras, extraDetails];
+                        }
+                    } else {
+                        // Remove extra
+                        currentExtras = currentExtras.filter(e => e.name !== extraName);
+                    }
+
+                    // Keep extras sorted for consistency if needed, or just update
+                    updatedItems[cartItemIndex] = { ...itemToUpdate, extras: currentExtras.sort((a, b) => a.name.localeCompare(b.name)) };
+                    return updatedItems;
+                });
+            };
+
+            // --- NEW: Half & Half Logic --- //
+            const handleSelectHalf = (pizza) => {
+                const priceForSize = pizza.prices[halfHalfSize];
+                if (priceForSize === null || priceForSize === undefined) return; // Should not happen if list is filtered
+
+                const pizzaWithPrice = { ...pizza, price: priceForSize };
+
+                if (!selectedHalf1) {
+                    setSelectedHalf1(pizzaWithPrice);
+                } else if (!selectedHalf2) {
+                    // Don't allow selecting the same half twice
+                    if (selectedHalf1.name === pizza.name) return;
+                    setSelectedHalf2(pizzaWithPrice);
+                } else {
+                    // If both are selected, replace the second one, unless it's the same as the first
+                    if (selectedHalf1.name === pizza.name) return;
+                    setSelectedHalf2(pizzaWithPrice);
+                }
+            };
+
+            const calculateHalfHalfPrice = () => {
+                if (!selectedHalf1 || !selectedHalf2) return 0;
+                return Math.max(selectedHalf1.price, selectedHalf2.price);
+            };
+
+            const addHalfHalfToCart = () => {
+                if (!selectedHalf1 || !selectedHalf2 || !halfHalfSize) return;
+
+                const finalPrice = calculateHalfHalfPrice();
+                const newItem = {
+                    name: `Meio a Meio: ${selectedHalf1.name} / ${selectedHalf2.name}`,
+                    size: halfHalfSize,
+                    basePrice: finalPrice,
+                    halves: [
+                        { name: selectedHalf1.name, price: selectedHalf1.price },
+                        { name: selectedHalf2.name, price: selectedHalf2.price }
+                    ],
+                    extras: [], // Start with empty extras
+                    quantity: 1,
+                    type: 'pizza',
+                    isHalfHalf: true
+                };
+
+                setCartItems(prevItems => [...prevItems, newItem]);
+
+                // Reset modal state and close
+                setShowHalfHalfModal(false);
+                setSelectedHalf1(null);
+                setSelectedHalf2(null);
+                // Maybe keep the size? setHalfHalfSize('FAMILIAR');
+
+                // Show cart
+                setShowCart(true);
+            };
+
+            // Filter pizzas available for half-half selection based on selected size
+            const availableHalfHalfPizzas = pizzaMenu.filter(pizza =>
+                pizza.prices[halfHalfSize] !== null && pizza.prices[halfHalfSize] !== undefined
+            );
+            // --- End Half & Half Logic --- //
+
+            return (
+                <div className="min-h-screen bg-[#1a1a1a] text-white p-4 relative">
+                    {/* Floating Cart Button with Animation */}
+                    <button
+                        onClick={() => setShowCart(!showCart)}
+                        className={`fixed bottom-5 right-5 bg-red-600 text-white p-4 rounded-full shadow-xl z-50 hover:bg-red-700 transition-all duration-300 transform hover:scale-110 ${cartItems.length > 0 ? 'animate-pulse' : ''}`}
+                        aria-label="Abrir Carrinho"
+                    >
+                        <i className="fas fa-shopping-cart text-xl"></i>
+                        {cartItems.length > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                                {cartItems.reduce((acc, item) => acc + item.quantity, 0)}
+                            </span>
+                        )}
+                    </button>
+
+                    {showCart && (
+                        <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-40 p-4 backdrop-blur-sm">
+                            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-xl md:max-w-3xl max-h-[90vh] overflow-y-auto relative shadow-2xl border border-gray-700">
+                                <button
+                                    onClick={() => setShowCart(false)}
+                                    className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+                                    aria-label="Fechar Carrinho"
+                                >
+                                    <i className="fas fa-times text-2xl"></i>
+                                </button>
+                                <h2 className="text-3xl font-bold mb-8 text-center text-red-500">Seu Pedido</h2>
+
+                                {cartItems.length === 0 ? (
+                                    <p className="text-center text-gray-400 py-10">Seu carrinho está vazio.</p>
+                                ) : (
+                                    <div>
+                                        <div className="divide-y divide-gray-700 mb-6">
+                                            {cartItems.map((item, index) => {
+                                                const itemUnitPrice = calculateItemTotalUnitPrice(item);
+                                                const itemLineTotal = itemUnitPrice * item.quantity;
+                                                return (
+                                                    <div key={`${item.name}-${item.size}-${index}-cart`} className="py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                                        <div className="flex-grow mb-3 sm:mb-0 pr-2 w-full sm:w-auto">
+                                                            <p className="font-semibold text-lg">{item.name} {item.size !== 'UN' ? `(${item.size})` : ''}</p>
+                                                            {item.extras && item.extras.length > 0 && (
+                                                                <p className="text-xs text-yellow-400 mt-1 break-words">
+                                                                    Extras Selecionados: {item.extras.map(e => `${e.name} (+${e.price}$00)`).join(', ')}
+                                                                </p>
+                                                            )}
+                                                            <p className="text-sm text-gray-500">({itemUnitPrice}$00 cada)</p>
+
+                                                            {item.type === 'pizza' && item.name !== 'MARGUERITA' && (
+                                                                <div className="mt-3 pt-3 border-t border-gray-700">
+                                                                    {/* Toggle Button for Extras */}
+                                                                    <button
+                                                                        onClick={() => setExtrasVisibility(prev => ({...prev, [index]: !prev[index]}))}
+                                                                        className="w-full text-left px-3 py-2 bg-gray-700 hover:bg-gray-600/80 rounded-md text-sm font-semibold text-yellow-400 transition-colors duration-200 flex justify-between items-center"
+                                                                    >
+                                                                        <span>Adicionar/Remover Extras</span>
+                                                                        <i className={`fas fa-chevron-down transition-transform duration-200 ${extrasVisibility[index] ? 'rotate-180' : ''}`}></i>
+                                                                    </button>
+
+                                                                    {/* Collapsible Extras Grid */}
+                                                                    {extrasVisibility[index] && (
+                                                                        <div className="mt-2 bg-gray-700/50 p-3 rounded-md">
+                                                                             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
+                                                                                 {availableExtras.map(extra => {
+                                                                                     const isChecked = item.extras && item.extras.some(e => e.name === extra.name);
+                                                                                     return (
+                                                                                         <label key={`${item.name}-${item.size}-${index}-extra-${extra.name}`} className="flex items-center gap-2 cursor-pointer text-xs whitespace-nowrap select-none p-1 rounded hover:bg-gray-600/70 transition-colors duration-200">
+                                                                                             <input
+                                                                                                 type="checkbox"
+                                                                                                 checked={isChecked}
+                                                                                                 onChange={(e) => handleCartExtraChange(index, extra.name, e.target.checked)}
+                                                                                                 className="form-checkbox h-4 w-4 text-red-600 bg-gray-900 border-gray-600 rounded focus:ring-red-500 focus:ring-offset-gray-800 cursor-pointer"
+                                                                                             />
+                                                                                             <span className="cursor-pointer">{extra.name} (+{extra.price}$00)</span>
+                                                                                         </label>
+                                                                                     );
+                                                                                 })}
+                                                                             </div>
+                                                                         </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {/* Quantity Controls */}
+                                                        <div className="flex items-center gap-2 self-start sm:self-center flex-shrink-0">
+                                                            <button onClick={() => updateQuantity(index, -1)} className="bg-red-700 hover:bg-red-600 w-7 h-7 rounded-full text-sm flex items-center justify-center transition-colors">-</button>
+                                                            <span className="min-w-[25px] text-center font-medium text-lg">{item.quantity}</span>
+                                                            <button onClick={() => updateQuantity(index, 1)} className="bg-green-700 hover:bg-green-600 w-7 h-7 rounded-full text-sm flex items-center justify-center transition-colors">+</button>
+                                                        </div>
+                                                        {/* Item Total and Delete Button */}
+                                                        <div className="flex items-center gap-3 self-end sm:self-center flex-shrink-0">
+                                                            <div className="font-semibold text-lg min-w-[90px] text-right">
+                                                                {itemLineTotal}$00
+                                                            </div>
+                                                            <button onClick={() => removeFromCart(index)} className="text-gray-500 hover:text-red-500 transition-colors p-2 -mr-2"><i className="fas fa-trash"></i></button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <div className="border-t border-gray-700 pt-6 space-y-4 mb-6">
+                                            <div className="flex justify-between items-center">
+                                                <span>Subtotal Itens:</span>
+                                                <span className="font-semibold text-lg">{calculateSubtotal()}$00</span>
+                                            </div>
+                                            {calculateBoxFee() > 0 && (
+                                                <div className="flex justify-between items-center text-sm text-gray-400">
+                                                    <span>Taxa de Caixa ({BOX_PRICE}$00/pizza):</span>
+                                                    <span>+{calculateBoxFee()}$00</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-center">
+                                                <label htmlFor="zone-select" className="text-sm flex-shrink-0 mr-2">Zona de Entrega:</label>
+                                                <select
+                                                    id="zone-select"
+                                                    value={selectedZone ? selectedZone.name : ""}
+                                                    onChange={handleZoneChange}
+                                                    className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm w-full max-w-[240px] focus:ring-red-500 focus:border-red-500"
+                                                >
+                                                    <option value="">Selecione a zona</option>
+                                                    {deliveryZones.sort((a, b) => a.name.localeCompare(b.name)).map(zone => (
+                                                        <option key={`select-${zone.name}`} value={zone.name}>
+                                                            {zone.name} (+{zone.price}$00)
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            {selectedZone && (
+                                                <div className="flex justify-between items-center text-sm text-green-400">
+                                                    <span>Taxa de Entrega ({selectedZone.name}):</span>
+                                                    <span>+{selectedZone.price}$00</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="border-t-2 border-red-500 pt-5 mt-6 flex justify-between items-center font-bold text-xl">
+                                            <span>Total Final:</span>
+                                            <span>{calculateTotal()}$00</span>
+                                        </div>
+
+                                        <button
+                                            onClick={generateWhatsAppMessage}
+                                            disabled={cartItems.length === 0 || !selectedZone}
+                                            className={`w-full mt-8 py-3 rounded-lg font-semibold text-lg transition duration-300 flex items-center justify-center gap-2 ${cartItems.length === 0 || !selectedZone ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500 text-white shadow-lg hover:shadow-xl transform hover:scale-[1.01]'}`}
+                                        >
+                                            <i className="fab fa-whatsapp mr-2"></i> Finalizar Pedido via WhatsApp
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- NEW: Half & Half Pizza Modal --- */}
+                    {showHalfHalfModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+                            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-xl md:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto relative shadow-2xl border border-gray-700">
+                                <button
+                                    onClick={() => setShowHalfHalfModal(false)}
+                                    className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-10"
+                                    aria-label="Fechar Modal"
+                                >
+                                    <i className="fas fa-times text-2xl"></i>
+                                </button>
+                                <h2 className="text-3xl font-bold mb-6 text-center text-yellow-500">Monte sua Pizza Meio a Meio</h2>
+
+                                {/* Size Selection for Half & Half */}
+                                <div className="flex justify-center gap-4 mb-8">
+                                    {["FAMILIAR", "MEDIO"].map((size) => (
+                                        <button
+                                            key={size}
+                                            onClick={() => {
+                                                setHalfHalfSize(size);
+                                                // Reset selected halves if size changes
+                                                setSelectedHalf1(null);
+                                                setSelectedHalf2(null);
+                                            }}
+                                            className={`px-5 py-2 rounded-full transition-all duration-300 ease-in-out font-medium text-sm ${halfHalfSize === size ? "bg-red-600 scale-110 shadow-xl ring-2 ring-red-400" : "bg-gray-700 hover:bg-red-800 hover:scale-105 hover:shadow-md"}`}
+                                        >
+                                            {size}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Instructions & Selection Area */}
+                                <div className="mb-6 text-center">
+                                    <p className="mb-2 text-lg">Selecione as duas metades para o tamanho <span className="font-bold text-red-400">{halfHalfSize}</span>:</p>
+                                    <div className="flex justify-center gap-6 text-sm">
+                                        <p className="text-yellow-400"><span className="font-semibold">Metade 1:</span> {selectedHalf1 ? selectedHalf1.name : '-'}</p>
+                                        <p className="text-yellow-400"><span className="font-semibold">Metade 2:</span> {selectedHalf2 ? selectedHalf2.name : '-'}</p>
+                                    </div>
+                                </div>
+
+                                {/* Pizza List for Selection */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+                                    {availableHalfHalfPizzas.length > 0 ? (
+                                        availableHalfHalfPizzas.map((pizza, index) => {
+                                            const isSelected1 = selectedHalf1 && selectedHalf1.name === pizza.name;
+                                            const isSelected2 = selectedHalf2 && selectedHalf2.name === pizza.name;
+                                            const isDisabled = isSelected1; // Simplified: Can't select the same as Half 1 for Half 2
+                                            const isUnavailable = selectedHalf1 && selectedHalf2 && !isSelected1 && !isSelected2; // Dim if both selected and it's not one of them
+
+                                            return (
+                                                <div
+                                                    key={`${pizza.name}-${index}-half`}
+                                                    className={`bg-gray-700 p-4 rounded-xl shadow-md border-2 transition-all duration-200 ${isSelected1 ? 'border-yellow-400 scale-105 ring-2 ring-yellow-300/50' : isSelected2 ? 'border-yellow-600 scale-105 ring-2 ring-yellow-500/50' : 'border-transparent hover:border-gray-500'} ${(isDisabled && !isSelected1) || isUnavailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                    onClick={() => !isDisabled && !isUnavailable && handleSelectHalf(pizza)}
+                                                >
+                                                    <h4 className="font-semibold text-base mb-1 truncate">{pizza.name}</h4>
+                                                    <p className="text-xs text-gray-400 mb-2 line-clamp-2">{pizza.desc}</p>
+                                                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-600/50">
+                                                        <span className="font-medium text-sm">{pizza.prices[halfHalfSize]}$00</span>
+                                                        <span
+                                                            className={`px-3 py-0.5 text-xs rounded-full font-semibold ${isSelected1 ? 'bg-yellow-400 text-black' : isSelected2 ? 'bg-yellow-600 text-black' : 'text-gray-400'}`}
+                                                        >
+                                                            {isSelected1 ? 'Metade 1' : isSelected2 ? 'Metade 2' : 'Selecionar'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="text-gray-500 md:col-span-2 lg:col-span-3 text-center py-10 italic">Nenhuma pizza disponível para este tamanho.</p>
+                                    )}
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-600 pt-5 mt-5">
+                                    <div className="text-lg font-bold text-white">
+                                        Preço: {selectedHalf1 && selectedHalf2 ? `${calculateHalfHalfPrice()}$00` : '--$00'}
+                                        {(selectedHalf1 && selectedHalf2 && selectedHalf1.price !== selectedHalf2.price) && (
+                                            <span className="text-xs text-gray-400 block">(Baseado na metade mais cara)</span>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setShowHalfHalfModal(false)}
+                                            className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-semibold transition-colors duration-300"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            onClick={addHalfHalfToCart}
+                                            disabled={!selectedHalf1 || !selectedHalf2}
+                                            className={`px-6 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${!selectedHalf1 || !selectedHalf2 ? 'bg-gray-500 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500 text-white shadow-md hover:shadow-lg transform hover:scale-[1.02]'}`}
+                                        >
+                                            Adicionar ao Carrinho
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="max-w-4xl mx-auto pb-20">
+                        {/* Header Section with Gradient Background */}
+                        <div className="text-center mb-10 pt-8 pb-6 bg-gradient-to-b from-gray-800 via-gray-900 to-[#1a1a1a] rounded-b-lg shadow-lg">
+                            <h1 className="text-4xl md:text-6xl font-bold mb-4 font-crimson-text tracking-wider 
+                                           bg-gradient-to-r from-yellow-400 via-red-500 to-yellow-400 
+                                           bg-clip-text text-transparent drop-shadow-sm">
+                                KANTINHO DELÍCIA
+                            </h1>
+                            {/* Social Media Links */}
+                            <div className="flex justify-center flex-wrap gap-x-6 gap-y-2 mb-4 text-gray-300">
+                                <div className="flex items-center gap-2 group cursor-pointer">
+                                    <i className="fab fa-facebook text-xl text-blue-500 group-hover:text-blue-400 transition-colors"></i>
+                                    <span className="group-hover:text-white transition-colors">PIZZAR.A.C.V</span>
+                                </div>
+                            </div>
+                            {/* Phone Numbers with Icons */}
+                            <div className="flex justify-center flex-wrap gap-x-6 gap-y-2 text-sm text-gray-300 mt-4">
+                                <span className="flex items-center gap-1.5"><i className="fas fa-phone-alt fa-xs text-red-400"></i> FIXO: <span className="font-semibold">2616090</span></span>
+                                <span className="flex items-center gap-1.5"><i className="fas fa-mobile-alt fa-xs text-red-400"></i> SWAG: <span className="font-semibold">5999204</span></span>
+                                <span className="flex items-center gap-1.5"><i className="fas fa-mobile-alt fa-xs text-red-400"></i> PLAY: <span className="font-semibold">9352262</span></span>
+                            </div>
+                        </div>
+
+                        {/* --- NEW: Advertisement Section --- */}
+                        <div className="my-6 p-4 bg-gradient-to-r from-yellow-400 via-red-500 to-yellow-400 rounded-lg shadow-md text-center text-black">
+                            <p className="font-semibold text-lg">🎉 Promoção Especial! 🎉</p>
+                            <p className="text-sm">Na compra de 1 pizza MÉDIA, ganhe 10% de desconto!</p>
+                        </div>
+                        {/* --- End Advertisement Section --- */}
+
+                        <div className="flex justify-center gap-4 mb-8">
+                            {["PIZZAS", "BEBIDAS", "ZONAS"].map((menu) => (
+                                <button
+                                    key={menu}
+                                    onClick={() => {
+                                        setSelectedMenu(menu);
+                                        if (menu === "PIZZAS") {
+                                            setIsZonesOpen(false);
+                                        } else if (menu === "BEBIDAS") {
+                                            setSelectedSize("UN");
+                                            setIsZonesOpen(false);
+                                        } else if (menu === "ZONAS") {
+                                            setIsZonesOpen(true);
+                                        }
+                                    }}
+                                    className={`px-4 py-2 sm:px-6 sm:py-2.5 rounded-full transition-all duration-300 ease-in-out font-semibold text-xs sm:text-sm tracking-wide ${selectedMenu === menu ? "bg-red-500 scale-105 shadow-lg ring-2 ring-offset-2 ring-offset-gray-800 ring-red-400" : "bg-gray-600 hover:bg-red-700 hover:scale-105 hover:shadow-md text-gray-300 hover:text-white"}`}
+                                >
+                                    {menu}
+                                </button>
+                            ))}
+                            {/* Novo Botão Comunidade */}
+                            <a href="comunidade.html"
+                               className="px-4 py-2 sm:px-6 sm:py-2.5 rounded-full transition-all duration-300 ease-in-out font-semibold text-xs sm:text-sm tracking-wide bg-gray-600 hover:bg-blue-700 hover:scale-105 hover:shadow-md text-gray-300 hover:text-white flex items-center gap-2"
+                            >
+                                <i className="fas fa-users"></i> Comunidade
+                            </a>
+                        </div>
+
+                        {/* --- Search Bar --- */}
+                        {(selectedMenu === "PIZZAS" || selectedMenu === "BEBIDAS") && !isZonesOpen && (
+                            <div className="mb-6 px-2">
+                                <input
+                                    type="text"
+                                    placeholder={`Pesquisar ${selectedMenu.toLowerCase()}...`}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent placeholder-gray-400 text-white"
+                                />
+                            </div>
+                        )}
+                        {/* --- End Search Bar --- */}
+
+                        {selectedMenu === "PIZZAS" && !isZonesOpen && (
+                            <div className="text-center mb-8">
+                                <button
+                                    onClick={() => {
+                                        // Reset selections when opening modal
+                                        setSelectedHalf1(null);
+                                        setSelectedHalf2(null);
+                                        // Set default size based on current view, or Familiar
+                                        setHalfHalfSize(selectedSize === 'PEQ' ? 'FAMILIAR' : selectedSize);
+                                        setShowHalfHalfModal(true);
+                                    }}
+                                    className="bg-yellow-500 text-black px-6 py-2 rounded-full font-semibold text-sm hover:bg-yellow-400 transition duration-300 ease-in-out shadow-md hover:shadow-lg transform hover:scale-105"
+                                >
+                                    <i className="fas fa-puzzle-piece mr-2"></i> Montar Pizza Meio a Meio
+                                </button>
+                            </div>
+                        )}
+
+                        {selectedMenu === "PIZZAS" && !isZonesOpen && (
+                            <div className="flex justify-center gap-4 mb-8">
+                                {["FAMILIAR", "MEDIO", "PEQ"].map((size) => (
+                                    <button
+                                        key={size}
+                                        onClick={() => setSelectedSize(size)}
+                                        className={`px-5 py-2 sm:px-6 sm:py-2.5 rounded-full transition-all duration-300 ease-in-out font-semibold text-xs sm:text-sm tracking-wide ${selectedSize === size ? "bg-red-500 scale-105 shadow-lg ring-2 ring-offset-2 ring-offset-gray-800 ring-red-400" : "bg-gray-600 hover:bg-red-700 hover:scale-105 hover:shadow-md text-gray-300 hover:text-white"}`}
+                                    >
+                                        {size}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {isZonesOpen ? (
+                            <div className="grid md:grid-cols-3 sm:grid-cols-2 gap-3">
+                                {deliveryZones.sort((a,b) => a.name.localeCompare(b.name)).map((zone) => (
+                                    <div
+                                        key={`list-${zone.name}`}
+                                        className="bg-gray-800 p-3 rounded-lg flex justify-between items-center hover:bg-gray-700 transition duration-300"
+                                    >
+                                        <span>{zone.name}</span>
+                                        <span className="font-bold">{zone.price}$00</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="grid gap-6 md:gap-8">
+                                {(selectedMenu === "PIZZAS" ? pizzaMenu : drinkMenu)
+                                    .filter(item => {
+                                        // Filter based on search query (case-insensitive)
+                                        if (!searchQuery) return true; // Show all if search is empty
+                                        const nameMatch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+                                        // Future enhancement: could also search descriptions
+                                        // const descMatch = item.desc.toLowerCase().includes(searchQuery.toLowerCase());
+                                        return nameMatch; // || descMatch;
+                                    })
+                                    .map((item, index) => {
+                                    const isPizza = selectedMenu === "PIZZAS";
+                                    const itemSize = isPizza ? selectedSize : 'UN';
+                                    const itemKey = isPizza ? `${index}_${itemSize}` : `${index}_UN`;
+                                    const basePrice = item.prices[itemSize];
+                                    const canAdd = basePrice !== null && basePrice !== undefined;
+
+                                    return (
+                                        <div
+                                            key={itemKey}
+                                            className={`bg-gray-800 p-5 rounded-xl flex flex-col gap-4 shadow-md transition-all duration-300 ease-in-out ${canAdd ? 'hover:shadow-lg hover:scale-[1.02] hover:bg-gray-700/60 cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}
+                                            onClick={() => canAdd && addToCart(item, isPizza ? 'pizza' : 'drink')}
+                                        >
+                                            <div className="flex justify-between items-start gap-4">
+                                                <div className="flex-grow">
+                                                    <h3 className="text-xl font-bold">{item.name}</h3>
+                                                    <p className="text-gray-400 text-sm">{item.desc}</p>
+                                                </div>
+
+                                                <div className="flex flex-col items-end flex-shrink-0">
+                                                    <div className="text-lg font-bold mb-2">
+                                                        {canAdd ? (
+                                                            <span>
+                                                                {basePrice}$00
+                                                            </span>
+                                                        ) : (
+                                                            "-"
+                                                        )}
+                                                    </div>
+                                                    {/* Button removed, card is now clickable */}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Footer Section */}
+                        <footer className="mt-16 pt-8 border-t border-gray-700 text-center text-sm text-gray-500">
+                            <p className="mb-6 max-w-lg mx-auto leading-relaxed">
+                                {selectedMenu === "PIZZAS" && !isZonesOpen
+                                    ? `Taxa de caixa (${BOX_PRICE}$00) será adicionada por cada pizza no carrinho.`
+                                    : selectedMenu === "BEBIDAS"
+                                        ? "Selecione as bebidas desejadas e adicione ao carrinho."
+                                        : "As taxas de entrega variam por zona. Por favor, selecione sua zona de entrega no carrinho para ver o custo final."}
+                            </p>
+                            <div className="flex justify-center items-center gap-6 mb-4">
+                                <i className="fab fa-cc-paypal text-3xl text-gray-600 hover:text-blue-400 transition-colors duration-300 cursor-pointer"></i>
+                                <i className="fab fa-cc-mastercard text-3xl text-gray-600 hover:text-orange-500 transition-colors duration-300 cursor-pointer"></i>
+                                <i className="fab fa-cc-visa text-3xl text-gray-600 hover:text-indigo-500 transition-colors duration-300 cursor-pointer"></i>
+                            </div>
+                            <p className="text-xs mt-4">Kantinho Delícia &copy; {new Date().getFullYear()}</p> 
+                        </footer>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<MainComponent />, document.getElementById('root'));
+    </script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                try {
+                    navigator.serviceWorker.register('/sw.js').then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    }, err => {
+                        console.error('ServiceWorker registration failed inside .then: ', err);
+                    });
+                } catch (error) {
+                    console.error('Error during ServiceWorker registration attempt: ', error);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

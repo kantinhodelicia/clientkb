@@ -1,0 +1,163 @@
+{
+  "BOX_PRICE": 100,
+  "WHATSAPP_NUMBER": "2385999204",
+  "availableExtras": [
+    { "name": "Queijo", "price": 100 },
+    { "name": "Frango", "price": 120 },
+    { "name": "Cebola", "price": 50 },
+    { "name": "Bacon", "price": 150 },
+    { "name": "Atum", "price": 150 },
+    { "name": "Pimentão", "price": 50 },
+    { "name": "Queijo de Terra", "price": 150 },
+    { "name": "Ananás", "price": 100 },
+    { "name": "Mussarela", "price": 120 },
+    { "name": "Gouda", "price": 100 },
+    { "name": "Edem", "price": 100 },
+    { "name": "Fogo", "price": 110 },
+    { "name": "Queijo azul", "price": 150 },
+    { "name": "Chouriço", "price": 80 },
+    { "name": "Linguiça", "price": 150 },
+    { "name": "Presunto", "price": 180 },
+    { "name": "Cogumelo", "price": 120 },
+    { "name": "Cebolinha", "price": 50 }
+  ],
+  "pizzaMenu": [
+    {
+      "name": "MARGUERITA",
+      "desc": "Queijo mussarela, gouda, oregano e molho tomate",
+      "prices": { "FAMILIAR": 750, "MEDIO": 700, "PEQ": 450 }
+    },
+    {
+      "name": "4 QUEIJOS",
+      "desc": "Queijo mussarela, queijo azul, edem e fogo e molho tomate",
+      "prices": { "FAMILIAR": 900, "MEDIO": 850, "PEQ": 600 }
+    },
+    {
+      "name": "FIAMBRE",
+      "desc": "Fiambre, Queijo e molho tomate",
+      "prices": { "FAMILIAR": 800, "MEDIO": 750, "PEQ": 500 }
+    },
+    {                   
+      "name": "FRANGO",
+      "desc": "Frango, queijo, molho tomate",
+      "prices": { "FAMILIAR": 850, "MEDIO": 800, "PEQ": 550 }
+    },
+    {
+      "name": "CHOURIÇO",
+      "desc": "Chouriço Queijo e molho tomate",
+      "prices": { "FAMILIAR": 800, "MEDIO": 750, "PEQ": 500 }
+    },
+    {
+      "name": "BACON",
+      "desc": "Bacon, queijo, molho tomate",
+      "prices": { "FAMILIAR": 850, "MEDIO": 800, "PEQ": 550 }
+    },
+    {
+      "name": "PRESUNTO",
+      "desc": "Presunto, queijo, molho tomate",
+      "prices": { "FAMILIAR": 850, "MEDIO": 800, "PEQ": 550 }
+    },
+    {
+      "name": "LINGUIÇA E QUEIJO DE TERRA",
+      "desc": "Linguiça, Queijo branco e molho tomate",
+      "prices": { "FAMILIAR": 900, "MEDIO": 850, "PEQ": 600 }
+    },
+    {
+      "name": "CARNE MOIDA",
+      "desc": "Chouriço Queijo e molho tomate",
+      "prices": { "FAMILIAR": 900, "MEDIO": 850, "PEQ": 600 }
+    },
+    {
+      "name": "ATUM",
+      "desc": "Atum, cebola, queijo, molho tomate",
+      "prices": { "FAMILIAR": 800, "MEDIO": 750, "PEQ": 500 }
+    },
+    {
+      "name": "VEGETARIANO",
+      "desc": "Cebola,tomate,pimentão, cogumelo,queijo, molho tomate",
+      "prices": { "FAMILIAR": 900, "MEDIO": 850, "PEQ": 600 }
+    },
+    {
+      "name": "ESPECIAL DA CASA",
+      "desc": "Bacon, cogumelo, nata, queijo, molho tomate",
+      "prices": { "FAMILIAR": 900, "MEDIO": 850, "PEQ": 600 }
+    },
+    {
+      "name": "QUATRO ESTAÇÕES",
+      "desc": "Queijo e molho tomate cogumelo Fiambre Chouriço atum",
+      "prices": { "FAMILIAR": 900, "MEDIO": 850, "PEQ": 600 }
+    },
+    {
+      "name": "TROPICAL",
+      "desc": "Frutas da época, queijo, molho tomate",
+      "prices": { "FAMILIAR": 900, "MEDIO": 850, "PEQ": 600 }
+    },
+    {
+      "name": "MARISCO",
+      "desc": "Marisco, queijo, molho tomate",
+      "prices": { "FAMILIAR": 1200, "MEDIO": 1000 }
+    },
+    {
+      "name": "CAMARÃO",
+      "desc": "Camarão, queijo, molho tomate",
+      "prices": { "FAMILIAR": 1200, "MEDIO": 1000 }
+    },
+    {
+      "name": "MADÁ",
+      "desc": "Queijo, molho tomate, Chouriço, Bacon, Camarão e Ananás",
+      "prices": { "FAMILIAR": 1400 }
+    },
+    {
+      "name": "CALZONE",
+      "desc": "Frango ou, Chouriço, Presunto, Cogumelo, Atum e Cebola (queijo e molho tomate)",
+      "prices": { "FAMILIAR": 800 }
+    },
+    { "name": "VINHO TINTO", "desc": "Vinho tinto da região", "prices": { "UN": 500 } }
+  ],
+  "drinkMenu": [
+    { "name": "ÁGUA", "desc": "Água mineral", "prices": { "UN": 100 } },
+    { "name": "COCA-COLA", "desc": "Refrigerante Coca-Cola", "prices": { "UN": 250 } },
+    { "name": "FANTA LARANJA", "desc": "Refrigerante Fanta Laranja", "prices": { "UN": 150 } },
+    { "name": "CERVEJA", "desc": "Cerveja local", "prices": { "UN": 200 } },
+    { "name": "SUMO NATURAL", "desc": "Sumo natural da casa", "prices": { "UN": 200 } },
+    { "name": "VINHO TINTO", "desc": "Vinho tinto da região", "prices": { "UN": 500 } }
+  ],
+  "deliveryZones": [
+    { "name": "Alto Glória", "price": 200 },
+    { "name": "Achada Santo António", "price": 200 },
+    { "name": "Achada São Filipe", "price": 300 },
+    { "name": "Achada Grande Frente", "price": 300 },
+    { "name": "Achada Grande Trás", "price": 300 },
+    { "name": "Achada Eugênio Lima", "price": 300 },
+    { "name": "Achada Limpo/Achada Mato", "price": 300 },
+    { "name": "Achadinha", "price": 200 },
+    { "name": "Achadinha Pires", "price": 250 },
+    { "name": "Bairro Craveiro Lopes", "price": 200 },
+    { "name": "Bela Vista", "price": 150 },
+    { "name": "Campus Unicv", "price": 250 },
+    { "name": "Cidadela", "price": 200 },
+    { "name": "Cova Minhoto", "price": 250 },
+    { "name": "Calabaceira", "price": 250 },
+    { "name": "Coqueiro", "price": 250 },
+    { "name": "Castelão", "price": 250 },
+    { "name": "Fazenda", "price": 200 },
+    { "name": "Zona Quelém", "price": 150 },
+    { "name": "Quebra Canela", "price": 200 },
+    { "name": "Fundo Cobom", "price": 150 },
+    { "name": "Terra Branca", "price": 50 },
+    { "name": "Tira Chapéu", "price": 100 },
+    { "name": "Lém Ferreira", "price": 200 },
+    { "name": "Monte Vermelho", "price": 200 },
+    { "name": "Ponta Água", "price": 250 },
+    { "name": "Pensamento", "price": 250 },
+    { "name": "Palmarejo", "price": 250 },
+    { "name": "Palmarejo Grande", "price": 200 },
+    { "name": "Praia Negra", "price": 200 },
+    { "name": "Plateau", "price": 200 },
+    { "name": "Prainha", "price": 200 },
+    { "name": "São Pedro Latada", "price": 300 },
+    { "name": "Safende", "price": 250 },
+    { "name": "Várzea", "price": 150 },
+    { "name": "Vila Nova", "price": 250 }
+  ]
+} 
